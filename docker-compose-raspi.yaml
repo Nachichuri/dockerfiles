@@ -1,0 +1,86 @@
+version: "2"
+
+services:
+
+        samba:
+                image: dperson/samba:rpi
+                restart: always
+                command: '-u "raspi;${RPI_SAMBA_PW}" -s "raspi;/HDD;yes;no;no;raspi;raspi;raspi"'
+                stdin_open: true
+                tty: true
+                ports:
+                        - 139:139
+                        - 445:445
+                volumes:
+                        - /usr/share/zoneinfo/America/Argentina/Buenos_Aires:/etc/localtime
+                        - /home/pi/HDD:/HDD:rw
+
+        home:
+                image: nginx
+                volumes:
+                        - /home/pi/HDD/Documents/Web:/usr/share/nginx/html
+                ports:
+                        - "80:80"
+                environment:
+                        - NGINX_PORT=80
+                restart: always
+        
+        deluge:
+                image: lscr.io/linuxserver/deluge
+                container_name: deluge
+                environment:
+                        - PUID=1000
+                        - PGID=1000
+                        - TZ=America/Argentina/Buenos_Aires
+                        - DELUGE_LOGLEVEL=error
+                volumes:
+                        - /home/pi/HDD/Documents/deluge-config:/config
+                        - /home/pi/HDD/Downloads:/downloads
+                ports:
+                        - 8112:8112
+                        - 6881:6881
+                        - 6881:6881/udp
+                restart: unless-stopped
+
+        plex:
+                image: jaymoulin/plex:1.22.1.4228
+                ports:
+                        - 32400:32400
+                        - 33400:33400
+                volumes:
+                        - /home/pi/HDD/Documents/Plex:/root/Library/Application Support/Plex Media Server
+                        - /home/pi/HDD/Videos/Movies:/media/Movies
+                        - /home/pi/HDD/Videos/Series:/media/Series
+                        - /home/pi/HDD/tmp:/tmp
+                restart: always
+                network_mode: "host"
+
+        pihole:
+                container_name: pihole
+                image: pihole/pihole:latest
+                ports:
+                        - "53:53/tcp"
+                        - "53:53/udp"
+                        - "67:67/udp"
+                        - "8080:80/tcp"
+                        - "4443:443/tcp"
+                environment:
+                        TZ: "America/Argentina/Buenos_Aires"
+                        WEBPASSWORD: ${RPI_PIHOLE_PW}
+                volumes:
+                        - "/home/pi/HDD/Documents/pihole/etc/:/etc/pihole/"
+                        - "/home/pi/HDD/Documents/pihole/etc-dnsmasq.d/:/etc/dnsmasq.d/"
+                dns:
+                        - 127.0.0.1
+                        - 1.1.1.1
+                cap_add:
+                        - NET_ADMIN
+                restart: unless-stopped
+                                
+        tarjeta-regalo-bot:
+                image: nachichuri/tarjeta-regalo-bot:1.0
+                environment:
+                        BOT_API_KEY: ${RPI_TR_BOT_KEY}
+                volumes:
+                        - /home/pi/HDD/tr_bot_log.txt:/bot/log.txt 
+                restart: always
